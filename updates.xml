@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:netsuite="http://www.mulesoft.org/schema/mule/netsuite" xmlns:dw="http://www.mulesoft.org/schema/mule/ee/dw" xmlns:db="http://www.mulesoft.org/schema/mule/db" xmlns:metadata="http://www.mulesoft.org/schema/mule/metadata" xmlns:batch="http://www.mulesoft.org/schema/mule/batch" xmlns:sfdc="http://www.mulesoft.org/schema/mule/sfdc" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xmlns:spring="http://www.springframework.org/schema/beans" 
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-current.xsd
+http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/batch http://www.mulesoft.org/schema/mule/batch/current/mule-batch.xsd
+http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd
+http://www.mulesoft.org/schema/mule/sfdc http://www.mulesoft.org/schema/mule/sfdc/current/mule-sfdc.xsd
+http://www.mulesoft.org/schema/mule/ee/dw http://www.mulesoft.org/schema/mule/ee/dw/current/dw.xsd
+http://www.mulesoft.org/schema/mule/netsuite http://www.mulesoft.org/schema/mule/netsuite/current/mule-netsuite.xsd">
+    <batch:job name="updateIDs">
+        <batch:input>
+            <poll doc:name="Poll">
+                <fixed-frequency-scheduler frequency="15" startDelay="13" timeUnit="MINUTES"/>
+                <watermark variable="lastUpdate" default-expression="#[server.dateTime.format(&quot;yyyy-MM-dd'T'HH:mm:ss.SSS'Z'&quot;)]" selector="MAX" selector-expression="#[payload.LastModifiedDate]"/>
+                <sfdc:query config-ref="Salesforce__Basic_Authentication" query="dsql:SELECT BillingCity,BillingCountry,BillingPostalCode,BillingState,BillingStreet,DBID__c,Fax,Id,LastModifiedDate,Name,Phone FROM Account WHERE LastModifiedDate &gt; #[flowVars['lastUpdate']]" doc:name="Salesforce"/>
+            </poll>
+            <dw:transform-message metadata:id="10c2c513-ed05-4662-895f-940388903c32" doc:name="Transform Message">
+                <dw:input-payload mimeType="application/java"/>
+                <dw:set-payload><![CDATA[%dw 1.0
+%output application/java
+---
+payload map {
+	Id: $.DBID__c,
+	CompanyName: $.Name,
+	SalesforceId: $.Id,
+	Street: $.BillingStreet,
+	City: $.BillingCity,
+	State: $.BillingState,
+	Postal: $.BillingPostalCode,
+	Country: $.BillingCountry,
+	Phone: $.Phone
+}]]></dw:set-payload>
+            </dw:transform-message>
+        </batch:input>
+        <batch:process-records>
+            <batch:step name="Batch_Step1">
+                <set-variable variableName="pload" value="#[payload]" doc:name="Variable"/>
+                <enricher source="#[payload.size() &gt; 0]" target="#[recordVars.exists]" doc:name="Message Enricher">
+                    <db:select config-ref="MySQL_Configuration" doc:name="Database">
+                        <db:parameterized-query><![CDATA[Select Id,LastModifiedDate,SalesforceId,CompanyName,Street,City,State,Postal,Country,Fax,Phone From accounts Where CompanyName = #[payload.CompanyName] AND LastModifiedDate > #[flowVars['lastUpdate']]]]></db:parameterized-query>
+                    </db:select>
+                </enricher>
+
+                <dw:transform-message metadata:id="8497ab03-b162-457e-986a-f2ccc2344315" doc:name="Transform Message">
+                    <dw:input-payload mimeType="application/java"/>
+                    <dw:set-payload><![CDATA[%dw 1.0
+%output application/java
+---
+payload map {
+	Name: $.CompanyName,
+	Id: $.SalesforceId,
+	DBID__c: $.Id,
+	BillingStreet: $.Street,
+	BillingCity: $.City,
+	BillingState: $.State,
+	BillingPostalCode: $.Postal,
+	BillingCountry: $.Country,
+	Fax: $.Fax,
+	Phone: $.Phone
+}]]></dw:set-payload>
+                </dw:transform-message>
+                <sfdc:update config-ref="Salesforce__Basic_Authentication" type="Account" doc:name="Salesforce">
+                    <sfdc:objects ref="#[payload]"/>
+                </sfdc:update>
+                <set-payload value="#[flowVars.pload]" doc:name="Set Payload"/>
+            </batch:step>
+            <batch:step name="Batch_Step" accept-expression="#[!recordVars.exists]">
+                <batch:commit size="100" doc:name="Batch Commit">
+                    <db:update config-ref="MySQL_Configuration" bulkMode="true" doc:name="Database">
+                        <db:parameterized-query><![CDATA[Update accounts 
+Set SalesforceId=#[payload.SalesforceId],Street=#[payload.Street],City=#[payload.City],State=#[payload.State],Postal=#[payload.Postal],Country=#[payload.Country],Fax=#[payload.Fax],Phone=#[payload.Phone]
+Where CompanyName=#[payload.CompanyName]]]></db:parameterized-query>
+
+
+                    </db:update>
+                </batch:commit>
+
+            </batch:step>
+        </batch:process-records>
+        <batch:on-complete>
+            <logger message="#['\n\nIDs Processed: ' + payload.processedRecords +  ' \n' + 'Failed: ' + payload.failedRecords + '\n\n']" level="INFO" doc:name="Logger"/>
+
+        </batch:on-complete>
+    </batch:job>
+
+</mule>
