@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:json="http://www.mulesoft.org/schema/mule/json" xmlns:file="http://www.mulesoft.org/schema/mule/file" xmlns:dw="http://www.mulesoft.org/schema/mule/ee/dw" xmlns:metadata="http://www.mulesoft.org/schema/mule/metadata" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:tracking="http://www.mulesoft.org/schema/mule/ee/tracking" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xmlns:spring="http://www.springframework.org/schema/beans" 
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-current.xsd
+http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/file http://www.mulesoft.org/schema/mule/file/current/mule-file.xsd
+http://www.mulesoft.org/schema/mule/ee/dw http://www.mulesoft.org/schema/mule/ee/dw/current/dw.xsd
+http://www.mulesoft.org/schema/mule/ee/tracking http://www.mulesoft.org/schema/mule/ee/tracking/current/mule-tracking-ee.xsd
+http://www.mulesoft.org/schema/mule/json http://www.mulesoft.org/schema/mule/json/current/mule-json.xsd">
+    <http:request-config name="HTTP_Request_Configuration" host="localhost" port="8081" basePath="/results" doc:name="HTTP Request Configuration"/>
+    <file:connector name="File" readFromDirectory="src/main/resources" autoDelete="false" streaming="true" validateConnections="true" doc:name="File"/>
+    <flow name="qvnetsuiteconnector_tablesjsonFlow" processingStrategy="synchronous">
+        <file:inbound-endpoint path="src/main/resources" connector-ref="File" pollingFrequency="10000" responseTimeout="10000" metadata:id="dbacf0b7-e37e-4226-985c-9549299a8182" doc:name="File">
+            <file:filename-regex-filter pattern=".*json" caseSensitive="true"/>
+        </file:inbound-endpoint>
+        <dw:transform-message metadata:id="5c873631-439e-4b84-808b-7ce88e09e420" doc:name="Transform Message">
+            <dw:input-payload  />
+            <dw:set-payload><![CDATA[%dw 1.0
+%output application/java
+---
+payload map {
+	table: $.TableName,
+	field: $.Fields contains "internalId"
+}]]></dw:set-payload>
+        </dw:transform-message>
+        <splitter expression="#[payload]" metadata:id="221c551a-2dbc-4ade-8056-d4233295968f" doc:name="Splitter"/>
+        <expression-filter expression="#[payload.field=='false']" metadata:id="47c28d7b-6e87-47c3-8042-617a6642fd72" doc:name="Expression"/>
+
+        <logger message="#[payload]" level="INFO" doc:name="Logger"/>
+    </flow>
+</mule>
