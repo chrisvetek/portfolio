@@ -13,7 +13,7 @@ http://www.mulesoft.org/schema/mule/netsuite http://www.mulesoft.org/schema/mule
     <batch:job name="updateIDs">
         <batch:input>
             <poll doc:name="Poll">
-                <fixed-frequency-scheduler frequency="15" startDelay="13" timeUnit="MINUTES"/>
+                <fixed-frequency-scheduler frequency="30" startDelay="6" timeUnit="SECONDS"/>
                 <watermark variable="lastUpdate" default-expression="#[server.dateTime.format(&quot;yyyy-MM-dd'T'HH:mm:ss.SSS'Z'&quot;)]" selector="MAX" selector-expression="#[payload.LastModifiedDate]"/>
                 <sfdc:query config-ref="Salesforce__Basic_Authentication" query="dsql:SELECT BillingCity,BillingCountry,BillingPostalCode,BillingState,BillingStreet,DBID__c,Fax,Id,LastModifiedDate,Name,Phone FROM Account WHERE LastModifiedDate &gt; #[flowVars['lastUpdate']]" doc:name="Salesforce"/>
             </poll>

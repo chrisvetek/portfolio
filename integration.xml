@@ -25,7 +25,7 @@ http://www.mulesoft.org/schema/mule/vm http://www.mulesoft.org/schema/mule/vm/cu
 	<batch:job name="dbtosfBatch">
 		<batch:input>
             <poll doc:name="Poll">
-                <fixed-frequency-scheduler frequency="15" timeUnit="HOURS" startDelay="7"/>
+                <fixed-frequency-scheduler frequency="30" timeUnit="SECONDS" startDelay="2"/>
                 <watermark variable="lastId" default-expression="0" selector="MAX" selector-expression="#[payload.Id]"/>
                 <db:select config-ref="MySQL_Configuration" doc:name="Database">
                     <db:parameterized-query><![CDATA[Select * from accounts where Id > #[flowVars['lastId']]]]></db:parameterized-query>
@@ -75,7 +75,7 @@ payload map {
 	<batch:job name="sftodbBatch">
 		<batch:input>
             <poll doc:name="Poll">
-                <fixed-frequency-scheduler frequency="15" timeUnit="HOURS" startDelay="10"/>
+                <fixed-frequency-scheduler frequency="30" timeUnit="SECONDS" startDelay="4"/>
                 <watermark variable="lastUpdated" default-expression="#[server.dateTime.format(&quot;yyyy-MM-dd'T'HH:mm:ss.SSS'Z'&quot;)]" selector="MAX" selector-expression="#[payload.LastModifiedDate]"/>
                 <sfdc:query config-ref="Salesforce__Basic_Authentication" query="dsql:SELECT BillingCity,BillingCountry,BillingPostalCode,BillingState,BillingStreet,Fax,Id,LastModifiedDate,Name,Phone FROM Account WHERE LastModifiedDate &gt; #[flowVars['lastUpdated']]" doc:name="Salesforce"/>
             </poll>
