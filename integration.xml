@@ -1,12 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<mule xmlns:netsuite="http://www.mulesoft.org/schema/mule/netsuite"
-	xmlns:vm="http://www.mulesoft.org/schema/mule/vm" xmlns:tracking="http://www.mulesoft.org/schema/mule/ee/tracking" xmlns:metadata="http://www.mulesoft.org/schema/mule/metadata" xmlns:dw="http://www.mulesoft.org/schema/mule/ee/dw"
-	xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:spring="http://www.springframework.org/schema/beans"
-	xmlns:db="http://www.mulesoft.org/schema/mule/db" xmlns:sfdc="http://www.mulesoft.org/schema/mule/sfdc" xmlns:batch="http://www.mulesoft.org/schema/mule/batch"
-	xmlns:core="http://www.mulesoft.org/schema/mule/core" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-	xsi:schemaLocation="http://www.mulesoft.org/schema/mule/netsuite http://www.mulesoft.org/schema/mule/netsuite/current/mule-netsuite.xsd
-http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-current.xsd
+<mule xmlns:vm="http://www.mulesoft.org/schema/mule/vm" xmlns:tracking="http://www.mulesoft.org/schema/mule/ee/tracking" xmlns:metadata="http://www.mulesoft.org/schema/mule/metadata"
+	xmlns:dw="http://www.mulesoft.org/schema/mule/ee/dw" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xmlns:spring="http://www.springframework.org/schema/beans" xmlns:db="http://www.mulesoft.org/schema/mule/db" xmlns:sfdc="http://www.mulesoft.org/schema/mule/sfdc"
+	xmlns:batch="http://www.mulesoft.org/schema/mule/batch" xmlns:core="http://www.mulesoft.org/schema/mule/core" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-current.xsd
 http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd
 http://www.mulesoft.org/schema/mule/sfdc http://www.mulesoft.org/schema/mule/sfdc/current/mule-sfdc.xsd
 http://www.mulesoft.org/schema/mule/batch http://www.mulesoft.org/schema/mule/batch/current/mule-batch.xsd
@@ -20,20 +18,21 @@ http://www.mulesoft.org/schema/mule/vm http://www.mulesoft.org/schema/mule/vm/cu
 	</db:mysql-config>
 	<sfdc:config name="Salesforce__Basic_Authentication" username="chris33salesforce@gmail.com" password="Silverdesk29" securityToken="R0NXjLUx28qvbblWKMMXYzsbH"
 		doc:name="Salesforce: Basic Authentication" />
-	<netsuite:config-login-authentication name="NetSuite__Login_Authentication" email="errorspot1@ultimosoft.com"
+<!-- 	<netsuite:config-login-authentication name="NetSuite__Login_Authentication" email="errorspot1@ultimosoft.com"
 		password="ErrorSpot1" account="TSTDRV1387343" roleId="3" applicationId="C87CF42C-45A6-478C-AD84-CC9622959B0C" doc:name="NetSuite: Login Authentication">
 		<reconnect-forever />
-	</netsuite:config-login-authentication>
-	
+	</netsuite:config-login-authentication> -->
+
 	<batch:job name="dbtosfBatch">
 		<batch:input>
-            <poll doc:name="Poll">
-                <fixed-frequency-scheduler frequency="15" timeUnit="SECONDS" startDelay="1"/>
-                <watermark variable="lastTime" default-expression="#[server.dateTime.plusMinutes(-15).format(&quot;yyyy-MM-dd'T'HH:mm:ss.SSS'Z'&quot;)]" selector="MAX" selector-expression="#[payload.LastModifiedDate]"/>
-                <db:select config-ref="MySQL_Configuration" doc:name="Database">
-                    <db:parameterized-query><![CDATA[Select * from accounts Where LastModifiedDate > #[flowVars['lastTime']]]]></db:parameterized-query>
-                </db:select>
-            </poll>
+			<poll doc:name="Poll">
+				<fixed-frequency-scheduler frequency="15" timeUnit="SECONDS" startDelay="1" />
+				<watermark variable="lastID" default-expression="0"
+					selector="MAX" selector-expression="#[payload.Id]" />
+				<db:select config-ref="MySQL_Configuration" doc:name="Get New Database Records">
+                    <db:parameterized-query><![CDATA[Select * from accounts Where Id > #[flowVars['lastID']]]]></db:parameterized-query>
+				</db:select>
+			</poll>
 			<dw:transform-message doc:name="Maps to Accounts" metadata:id="67f76e95-c2a7-4959-9cb8-97bc7ac8b4ed">
 				<dw:input-payload mimeType="application/java" />
 				<dw:set-payload><![CDATA[%dw 1.0
@@ -56,7 +55,7 @@ payload map {
 			<batch:step name="Batch_Step" accept-policy="ALL">
 				<enricher source="#[payload.size() &gt; 0]" target="#[recordVars.exists]" doc:name="Check Record Exists">
 					<sfdc:query config-ref="Salesforce__Basic_Authentication" query="dsql:SELECT Name FROM Account WHERE Name = '#[payload.Name]'"
-						doc:name="Salesforce" />
+						doc:name="Get Salesforce Records" />
 
 				</enricher>
 
@@ -64,8 +63,8 @@ payload map {
 			<batch:step name="Batch_Step2" accept-expression="#[!recordVars.exists]" accept-policy="ALL">
 
 				<batch:commit size="100" doc:name="Batch Commit">
-					<sfdc:upsert-bulk config-ref="Salesforce__Basic_Authentication"  type="Account" doc:name="Salesforce" externalIdFieldName="DBID__c">
-                        <sfdc:objects ref="#[payload]"/>
+					<sfdc:upsert-bulk config-ref="Salesforce__Basic_Authentication" type="Account" doc:name="Create New Salesforce Records" externalIdFieldName="DBID__c">
+						<sfdc:objects ref="#[payload]" />
 
 					</sfdc:upsert-bulk>
 
@@ -73,19 +72,23 @@ payload map {
 			</batch:step>
 		</batch:process-records>
 		<batch:on-complete>
-			<logger level="INFO" doc:name="Logger" message="#['\n\nDatabase Records Processed: ' + payload.processedRecords + '\n' + 'Failed: ' + payload.failedRecords + '\n\n']" />
+			<logger level="INFO" doc:name="Log of New Records "
+				message="#['\n\nDatabase Records Processed: ' + payload.processedRecords + '\n' + 'Failed: ' + payload.failedRecords + '\n\n']" />
 		</batch:on-complete>
 	</batch:job>
 	<batch:job name="sftodbBatch">
 		<batch:input>
-            <poll doc:name="Poll">
-                <fixed-frequency-scheduler frequency="15" timeUnit="SECONDS" startDelay="3"/>
-                <watermark variable="lastUpdated" default-expression="#[server.dateTime.plusMinutes(-15).format(&quot;yyyy-MM-dd'T'HH:mm:ss.SSS'Z'&quot;)]" selector="MAX" selector-expression="#[payload.LastModifiedDate]"/>
-                <sfdc:query config-ref="Salesforce__Basic_Authentication" query="dsql:SELECT BillingCity,BillingCountry,BillingPostalCode,BillingState,BillingStreet,DBID__c,Fax,Id,LastModifiedDate,Name,Phone FROM Account WHERE LastModifiedDate &gt; #[flowVars['lastUpdated']]" doc:name="Salesforce"/>
-            </poll>
+			<poll doc:name="Poll">
+				<fixed-frequency-scheduler frequency="15" timeUnit="SECONDS" startDelay="3" />
+				<watermark variable="lastUpdate" default-expression="#[server.dateTime.plusMinutes(-2).format(&quot;yyyy-MM-dd'T'HH:mm:ss.SSS'Z'&quot;)]"
+					selector="MAX" selector-expression="#[payload.LastModifiedDate]" />
+				<sfdc:query config-ref="Salesforce__Basic_Authentication"
+					query="dsql:SELECT BillingCity,BillingCountry,BillingPostalCode,BillingState,BillingStreet,DBID__c,Fax,Id,LastModifiedDate,Name,Phone FROM Account WHERE LastModifiedDate &gt; #[flowVars['lastUpdate']]"
+					doc:name="Get New Salesforce Records" />
+			</poll>
 
 			<dw:transform-message doc:name="Accounts to Maps" metadata:id="dbbf2d41-3152-4f5d-8b45-03852c95ae83">
-				<dw:input-payload mimeType="application/java"/>
+				<dw:input-payload mimeType="application/java" />
 				<dw:set-payload><![CDATA[%dw 1.0
 %output application/java
 ---
@@ -105,8 +108,9 @@ payload map {
 		<batch:process-records>
 			<batch:step name="Batch_StepA">
 				<enricher source="#[payload.size() &gt; 0]" target="#[recordVars.exists]" doc:name="Check Record Exists">
-					<db:select config-ref="MySQL_Configuration" doc:name="Database">
-                        <db:parameterized-query><![CDATA[Select CompanyName,SalesforceId,Street,City,State,Postal,Country,LastModifiedDate,Phone,Fax From accounts Where CompanyName = #[payload.CompanyName]]]></db:parameterized-query>
+					<db:select config-ref="MySQL_Configuration" doc:name="Get Database Records">
+                        <db:parameterized-query><![CDATA[Select CompanyName,SalesforceId,Street,City,#['State'],Postal,Country,LastModifiedDate,Phone,Fax From accounts Where CompanyName = #[payload.CompanyName]]]></db:parameterized-query>
+
 
 
 
@@ -117,8 +121,8 @@ payload map {
 			<batch:step name="Batch_StepB" accept-expression="#[!recordVars.exists]">
 
 				<batch:commit size="100" doc:name="Batch Commit">
-					<db:insert config-ref="MySQL_Configuration" doc:name="Database" bulkMode="true">
-                        <db:parameterized-query><![CDATA[Insert into accounts(CompanyName,SalesforceId,Street,City,State,Postal,Country,LastModifiedDate,Phone,Fax) values(#[payload['CompanyName']],#[payload['SalesforceId']],#[payload['Street']],#[payload['City']],#[payload['State']],#[payload['Postal']],#[payload['Country']],#[payload['LastModifiedDate']],#[payload['Phone']],#[payload['Fax']])]]></db:parameterized-query>
+					<db:insert config-ref="MySQL_Configuration" doc:name="Create New Database Records" bulkMode="true">
+						<db:parameterized-query><![CDATA[Insert into accounts(CompanyName,SalesforceId,Street,City,State,Postal,Country,LastModifiedDate,Phone,Fax) values(#[payload['CompanyName']],#[payload['SalesforceId']],#[payload['Street']],#[payload['City']],#[payload['State']],#[payload['Postal']],#[payload['Country']],#[payload['LastModifiedDate']],#[payload['Phone']],#[payload['Fax']])]]></db:parameterized-query>
 
 
 
@@ -127,43 +131,46 @@ payload map {
 			</batch:step>
 		</batch:process-records>
 		<batch:on-complete>
-			<logger message="#['\n\nSalesforce Records Processed: ' + payload.processedRecords + '\n' + 'Failed: ' + payload.failedRecords + '\n\n']" level="INFO"
-				doc:name="Logger" />
+			<logger message="#['\n\nSalesforce Records Processed: ' + payload.processedRecords + '\n' + 'Failed: ' + payload.failedRecords + '\n\n']"
+				level="INFO" doc:name="Log of New Records" />
 		</batch:on-complete>
 	</batch:job>
-    <batch:job name="idBatch">
-        <batch:input>
-            <poll doc:name="Poll">
-                <fixed-frequency-scheduler frequency="15" startDelay="5" timeUnit="SECONDS"/>
-                <watermark variable="last" default-expression="#[server.dateTime.plusMinutes(-15).format(&quot;yyyy-MM-dd'T'HH:mm:ss.SSS'Z'&quot;)]" selector="MAX" selector-expression="#[payload.LastModifiedDate]"/>
-                <sfdc:query config-ref="Salesforce__Basic_Authentication" query="dsql:SELECT DBID__c,Id,LastModifiedDate,Name FROM Account WHERE LastModifiedDate &gt; #[flowVars['last']]" doc:name="Salesforce"/>
-            </poll>
-            <dw:transform-message metadata:id="6b6135a2-a1b8-4188-8464-6a4ec305df07" doc:name="Transform Message">
-                <dw:input-payload mimeType="application/java"/>
-                <dw:set-payload><![CDATA[%dw 1.0
+	<batch:job name="idBatch">
+		<batch:input>
+			<poll doc:name="Poll">
+				<fixed-frequency-scheduler frequency="15" startDelay="5" timeUnit="SECONDS" />
+				<watermark variable="last" default-expression="#[server.dateTime.plusMinutes(-2).format(&quot;yyyy-MM-dd'T'HH:mm:ss.SSS'Z'&quot;)]"
+					selector="MAX" selector-expression="#[payload.LastModifiedDate]" />
+				<sfdc:query config-ref="Salesforce__Basic_Authentication" query="dsql:SELECT DBID__c,Id,LastModifiedDate,Name FROM Account WHERE LastModifiedDate &gt; #[flowVars['last']]"
+					doc:name="Get Updated Salesforce Records" />
+			</poll>
+			<dw:transform-message metadata:id="6b6135a2-a1b8-4188-8464-6a4ec305df07" doc:name="Accounts to Maps">
+				<dw:input-payload mimeType="application/java" />
+				<dw:set-payload><![CDATA[%dw 1.0
 %output application/java
 ---
 payload map {
 	CompanyName: $.Name,
 	SalesforceId: $.Id
 }]]></dw:set-payload>
-            </dw:transform-message>
-            <set-variable variableName="pload" value="#[payload]" doc:name="Variable"/>
-        </batch:input>
-        <batch:process-records>
-            <batch:step name="Batch_Step1">
-                <db:update config-ref="MySQL_Configuration" doc:name="Database">
-                    <db:parameterized-query><![CDATA[Update accounts 
+			</dw:transform-message>
+		</batch:input>
+		<batch:process-records>
+			<batch:step name="Batch_Step1">
+				<set-variable variableName="pload" value="#[payload]" doc:name="Store Payload" />
+				<db:update config-ref="MySQL_Configuration" doc:name="Update Database">
+					<db:parameterized-query><![CDATA[Update accounts 
 Set SalesforceId = #[payload.SalesforceId]
 Where CompanyName = #[payload.CompanyName]]]></db:parameterized-query>
-                </db:update>
-            </batch:step>
-            <batch:step name="Batch_Step3" accept-expression="#[payload]">
-                <set-payload value="#[flowVars.pload]" doc:name="Set Payload"/>
-                <db:select config-ref="MySQL_Configuration" doc:name="Database">
-                    <db:parameterized-query><![CDATA[Select Id,SalesforceId,CompanyName from accounts where LastModifiedDate > #[flowVars['last']]]]></db:parameterized-query>
-                </db:select>
-                <dw:transform-message metadata:id="6f39fff3-bb51-4876-8220-b99462d0e1a3" doc:name="Transform Message">
+				</db:update>
+			</batch:step>
+			<batch:step name="Batch_Step3" accept-expression="#[payload]">
+				<set-payload value="#[flowVars.pload]" doc:name="Retrieve Stored Payload" />
+				<db:select config-ref="MySQL_Configuration" doc:name="Get From Database">
+                    <db:parameterized-query><![CDATA[Select Id,SalesforceId,CompanyName from accounts where LastModifiedDate > #[server.dateTime.plusMinutes(-2).format("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'")]]]></db:parameterized-query>
+
+				</db:select>
+                <dw:transform-message metadata:id="6f39fff3-bb51-4876-8220-b99462d0e1a3" doc:name="Maps to Accounts">
                     <dw:input-payload mimeType="application/java"/>
                     <dw:set-payload><![CDATA[%dw 1.0
 %output application/java
@@ -174,13 +181,15 @@ payload map {
 	DBID__c: $.Id
 }]]></dw:set-payload>
                 </dw:transform-message>
-                <sfdc:update config-ref="Salesforce__Basic_Authentication" type="Account" doc:name="Salesforce">
+                <sfdc:update config-ref="Salesforce__Basic_Authentication" type="Account" doc:name="Update Salesforce">
                     <sfdc:objects ref="#[payload]"/>
                 </sfdc:update>
-            </batch:step>
-        </batch:process-records>
-        <batch:on-complete>
-            <logger message="#['\n\nIDs Processed: ' + payload.processedRecords + '\n' + 'Failed: ' + payload.failedRecords + '\n\n']" level="INFO" doc:name="Logger"/>
-        </batch:on-complete>
-    </batch:job>
+			</batch:step>
+
+		</batch:process-records>
+		<batch:on-complete>
+			<logger message="#['\n\nIDs Processed: ' + payload.processedRecords + '\n' + 'Failed: ' + payload.failedRecords + '\n\n']" level="INFO"
+				doc:name="Log of # of Account IDs Updated" />
+		</batch:on-complete>
+	</batch:job>
 </mule>
