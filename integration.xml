@@ -13,15 +13,12 @@ http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/cor
 http://www.mulesoft.org/schema/mule/ee/tracking http://www.mulesoft.org/schema/mule/ee/tracking/current/mule-tracking-ee.xsd
 http://www.mulesoft.org/schema/mule/vm http://www.mulesoft.org/schema/mule/vm/current/mule-vm.xsd">
 
-	<db:mysql-config name="MySQL_Configuration" host="localhost" port="3306" user="root" password="Silverdesk29" database="accounts"
+	<db:mysql-config name="MySQL_Configuration" host="localhost" port="3306" user="user" password="password" database="accounts"
 		doc:name="MySQL Configuration" transactionIsolation="SERIALIZABLE">
 	</db:mysql-config>
-	<sfdc:config name="Salesforce__Basic_Authentication" username="chris33salesforce@gmail.com" password="Silverdesk29" securityToken="R0NXjLUx28qvbblWKMMXYzsbH"
+	<sfdc:config name="Salesforce__Basic_Authentication" username="user" password="password" securityToken="token"
 		doc:name="Salesforce: Basic Authentication" />
-<!-- 	<netsuite:config-login-authentication name="NetSuite__Login_Authentication" email="errorspot1@ultimosoft.com"
-		password="ErrorSpot1" account="TSTDRV1387343" roleId="3" applicationId="C87CF42C-45A6-478C-AD84-CC9622959B0C" doc:name="NetSuite: Login Authentication">
-		<reconnect-forever />
-	</netsuite:config-login-authentication> -->
+
 
 	<batch:job name="dbtosfBatch">
 		<batch:input>
