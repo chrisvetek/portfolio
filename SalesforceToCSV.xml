@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:json="http://www.mulesoft.org/schema/mule/json" xmlns:metadata="http://www.mulesoft.org/schema/mule/metadata" xmlns:dw="http://www.mulesoft.org/schema/mule/ee/dw" xmlns:sfdc="http://www.mulesoft.org/schema/mule/sfdc" xmlns:tracking="http://www.mulesoft.org/schema/mule/ee/tracking" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xmlns:spring="http://www.springframework.org/schema/beans" 
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-current.xsd
+http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/ee/tracking http://www.mulesoft.org/schema/mule/ee/tracking/current/mule-tracking-ee.xsd
+http://www.mulesoft.org/schema/mule/ee/dw http://www.mulesoft.org/schema/mule/ee/dw/current/dw.xsd
+http://www.mulesoft.org/schema/mule/sfdc http://www.mulesoft.org/schema/mule/sfdc/current/mule-sfdc.xsd
+http://www.mulesoft.org/schema/mule/json http://www.mulesoft.org/schema/mule/json/current/mule-json.xsd">
+    <sfdc:config name="Salesforce__Basic_Authentication" username="user" password="password" securityToken="token"
+		doc:name="Salesforce: Basic Authentication" />
+    <flow name="getcsvfromsfFlow" processingStrategy="synchronous">
+        <poll doc:name="Poll">
+            <fixed-frequency-scheduler frequency="2" timeUnit="MINUTES"/>
+            <sfdc:query config-ref="Salesforce__Basic_Authentication" query="dsql:SELECT BillingCity,BillingCountry,BillingPostalCode,BillingState,BillingStreet,DBID__c,Fax,Id,LastModifiedDate,Name,Phone FROM Account" doc:name="Salesforce"/>
+        </poll>
+        <dw:transform-message metadata:id="98e50ccb-95b6-436c-b1f8-61ed6aa82ecd" doc:name="Transform Message">
+            <dw:input-payload mimeType="application/java"/>
+            <dw:set-payload><![CDATA[%dw 1.0
+%output application/csv
+---
+payload map {
+	column_0: $.Id,
+	column_1: $.Name,
+	column_2: $.BillingStreet,
+	column_3: $.BillingCity,
+	column_4: $.BillingState,
+	column_5: $.BillingPostalCode,
+	column_6: $.BillingCountry
+}
+]]></dw:set-payload>
+        </dw:transform-message>
+        <byte-array-to-string-transformer doc:name="Byte Array to String"/>
+        <logger message="#[payload]" level="INFO" doc:name="Logger"/>
+
+    </flow>
+</mule>
