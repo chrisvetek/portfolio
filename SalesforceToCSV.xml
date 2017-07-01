@@ -22,17 +22,21 @@ http://www.mulesoft.org/schema/mule/json http://www.mulesoft.org/schema/mule/jso
 %output application/csv
 ---
 payload map {
-	column_0: $.Id,
-	column_1: $.Name,
-	column_2: $.BillingStreet,
-	column_3: $.BillingCity,
-	column_4: $.BillingState,
-	column_5: $.BillingPostalCode,
-	column_6: $.BillingCountry
+	Id: $.Id,
+	DBID__c: $.DBID__c,
+	Name: $.Name,
+	Street: $.BillingStreet,
+	City: $.BillingCity,
+	State: $.BillingState,
+	Postal: $.BillingPostalCode,
+	Country: $.BillingCountry,
+	Phone: $.Phone,
+	Fax: $.Fax
 }
 ]]></dw:set-payload>
         </dw:transform-message>
         <byte-array-to-string-transformer doc:name="Byte Array to String"/>
+        <file:outbound-endpoint path="src/main/resources" outputPattern="accounts.csv" responseTimeout="10000" doc:name="File"/>
         <logger message="#[payload]" level="INFO" doc:name="Logger"/>
 
     </flow>

@@ -9,4 +9,4 @@ pdf_file1: This Mule XML configuration takes a text file as the message source, 
 
 integration xml file:  These are the core xml config files for a mule project that succesfully will sync salesforce accounts to database accounts( in this case using MySQL ).  I used Mule Anypoint Studio 8.2 EE free developer version, and Salesforce Developer account.  Need to change the login and config info for the Database and Salesforce connectors to match your account info.   
 
-SalesforceToCSV:  Selects account data from salesforce and transforms accounts to a CSV list (in this example just logs to the console, but you can save to file)
+SalesforceToCSV:  Selects account data from salesforce and transforms accounts to a CSV file
