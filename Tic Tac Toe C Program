@@ -1,0 +1,106 @@
+/*board3.c*/
+
+#include<stdio.h>
+#include<stdlib.h>
+#include<string.h>
+#include<time.h>
+
+int main(){
+
+	int names=0;
+	char name1[10];
+	char name2[10];
+	
+	
+		printf("Enter the first player's name: ");
+		scanf("%s",name1);
+		printf("Enter the second player's name: ");
+		scanf("%s",name2);
+		
+/*is \n one character or two?*/
+
+	char brd[]={"  | |  \n--+-+--\n  | |  \n--+-+--\n  | |  "};
+	
+	char ch;
+	ch = getchar();
+	
+	int t=0;
+	int play=0;
+	
+	/* stops after 9 turns starting with turn 0 */
+	
+	while(t< 9){
+	
+	
+		srand(time(NULL));
+			while(t%2==0){
+				play=rand()%40;
+					if((play%2)!=0){    /* only play x or o on odd blanks */
+						if(brd[play]==' '){
+							brd[play]='x';
+							
+								      if(((brd[1]=='x')&&(brd[3]=='x')&&(brd[5]=='x'))||
+									((brd[17]=='x')&&(brd[19]=='x')&&(brd[21]=='x'))||
+									((brd[33]=='x')&&(brd[35]=='x')&&(brd[37]=='x'))||
+									((brd[1]=='x')&&(brd[17]=='x')&&(brd[33]=='x'))||
+									((brd[3]=='x')&&(brd[19]=='x')&&(brd[35]=='x'))||
+									((brd[5]=='x')&&(brd[21]=='x')&&(brd[37]=='x'))||
+									((brd[1]=='x')&&(brd[19]=='x')&&(brd[37]=='x'))||
+									((brd[5]=='x')&&(brd[19]=='x')&&(brd[33]=='x'))){
+				
+		   								printf("%s wins!\n",name1);
+										printf("\n\n%s\n\n",brd);  
+										return 1;
+									}else{
+										printf("\n\n%s\n\n",brd);
+							
+										printf("Press ENTER to continue: \n");
+										
+          									char c=getchar();
+          									
+          									while(c!='\n'){
+            										getchar(); 
+            									} 
+            							}
+            							break;
+						}
+					}
+					
+			}
+			while(t%2!=0){
+				play=rand()%40;
+					if((play%2)!=0){
+						if(brd[play]==' '){
+							brd[play]='o';
+								
+								      if(((brd[1]=='o')&&(brd[3]=='o')&&(brd[5]=='o'))||
+									((brd[17]=='o')&&(brd[19]=='o')&&(brd[21]=='o'))||
+									((brd[33]=='o')&&(brd[35]=='o')&&(brd[37]=='o'))||
+									((brd[1]=='o')&&(brd[17]=='o')&&(brd[33]=='o'))||
+									((brd[3]=='o')&&(brd[19]=='o')&&(brd[35]=='o'))||
+									((brd[5]=='o')&&(brd[21]=='o')&&(brd[37]=='o'))||
+									((brd[1]=='o')&&(brd[19]=='o')&&(brd[37]=='o'))||
+									((brd[5]=='o')&&(brd[19]=='o')&&(brd[33]=='o'))){
+		   		
+       										printf("%s wins!\n",name2);
+										printf("\n\n%s\n\n",brd);
+										return 1;
+									}else{
+										printf("\n\n%s\n\n",brd);
+						
+										printf("Press ENTER to continue: \n");
+          									
+          									char c=getchar();
+          									
+          									while(c!='\n'){
+            										getchar(); 
+            									}
+            							}
+								break;
+						}
+					}	
+			}
+			t=t+1;		
+	}						
+   return 1;
+}
